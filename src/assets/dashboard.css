@@ -1,0 +1,657 @@
+.dashboard {
+  position: relative;
+  min-height: 100vh;
+  padding: 1rem 1rem 4.5rem;
+  color: var(--text);
+  font-family: var(--font-family);
+  background-color: var(--page-bg);
+  background-image: var(--page-image);
+  background-repeat: var(--page-repeat);
+  background-size: var(--page-size);
+  background-blend-mode: var(--page-blend);
+}
+
+.texture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--texture-image) repeat;
+  opacity: var(--texture-opacity);
+  mix-blend-mode: var(--texture-blend);
+}
+
+.dashboard-shell {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-gap);
+  width: min(1360px, 100%);
+  margin: 0 auto;
+}
+
+.theme-select {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  align-self: flex-end;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.theme-select select {
+  min-width: 8.5rem;
+  padding: 0.35rem 0.7rem;
+  color: var(--text);
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  border-radius: 999px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(var(--panel-blur));
+}
+
+.surface {
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(var(--panel-blur));
+}
+
+.bottom-panel {
+  height: 20rem;
+  min-height: 20rem;
+  background: var(--bottom-panel-bg);
+}
+
+.panel-title,
+.prayer-title,
+.prayer-card-text {
+  font-weight: var(--heading-weight);
+  letter-spacing: var(--heading-tracking);
+}
+
+.panel-title {
+  margin: 0 0 0.5rem;
+  color: var(--heading-color);
+  font-size: var(--heading-size);
+  text-align: center;
+  text-transform: var(--heading-transform);
+}
+
+.clock-text {
+  color: var(--clock-color);
+  font-weight: var(--clock-weight);
+  font-size: var(--clock-size);
+  line-height: 1;
+  letter-spacing: var(--clock-tracking);
+}
+
+.header-overlay {
+  position: relative;
+  margin-bottom: 3rem;
+}
+
+.header-overlay .clock-slot {
+  display: flex;
+  justify-content: center;
+}
+
+@media (min-width: 1024px) {
+  .header-overlay .clock-slot {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+}
+
+.calendar-card {
+  width: var(--calendar-width);
+  max-width: 100%;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  color: var(--calendar-header-color);
+  font-size: var(--calendar-header-size, 1rem);
+  font-weight: var(--calendar-header-weight, 600);
+  background: var(--calendar-header-bg);
+  border-radius: var(--calendar-header-radius, 1rem);
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--nav-btn-color);
+  background: var(--nav-btn-bg);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.weekday-row {
+  border-bottom: var(--weekday-divider, none);
+}
+
+.weekday {
+  color: var(--weekday-color);
+  font-size: 11px;
+  font-weight: var(--weekday-weight, 500);
+  text-align: center;
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--day-size);
+  height: var(--day-size);
+  margin: 0 auto;
+  color: var(--day-color);
+  font-size: 12px;
+  border-radius: var(--day-radius);
+  cursor: pointer;
+}
+
+.day.is-outside {
+  color: var(--day-outside);
+}
+
+.day.is-today {
+  color: var(--today-color);
+  font-weight: 700;
+  background: var(--today-bg);
+}
+
+.day.is-selected {
+  color: var(--selected-color);
+  font-weight: 700;
+  background: var(--selected-bg);
+}
+
+.prayer-title {
+  margin: 0;
+  color: var(--prayer-title-color);
+  font-family: var(--prayer-title-font);
+  font-size: var(--prayer-title-size);
+  font-weight: var(--prayer-title-weight);
+  letter-spacing: var(--prayer-title-tracking);
+  text-align: center;
+  text-transform: var(--prayer-title-transform);
+}
+
+.prayer-time {
+  margin: 0.15rem 0 0.75rem;
+  color: var(--prayer-time-color);
+  font-family: var(--prayer-title-font);
+  font-size: var(--prayer-time-size);
+  font-weight: var(--prayer-time-weight);
+  text-align: center;
+}
+
+.prayer-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  background: var(--card-bg);
+  border: var(--card-border);
+  border-bottom: var(--card-border-bottom, var(--card-border));
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(var(--card-blur, var(--panel-blur)));
+}
+
+.prayer-card-content {
+  height: 100%;
+  padding-top: 0.5rem;
+  overflow-y: auto;
+  scrollbar-color: var(--card-scrollbar) transparent;
+  scrollbar-width: thin;
+}
+
+.prayer-card-text,
+.row-input,
+.editor-box textarea,
+.editor-box input,
+.reminder-textarea,
+.note-input {
+  font-family: var(--card-font);
+  font-size: var(--card-font-size);
+  letter-spacing: var(--card-tracking);
+}
+
+.collapsed-input-block,
+.row-input {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.collapsed-input-block {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--row-height);
+  margin: var(--row-margin, 0.5rem 0.4rem 0);
+  overflow: hidden;
+  border-radius: var(--row-radius);
+  cursor: pointer;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.row-fixed {
+  color: var(--fixed-row-color);
+  background: var(--fixed-row-bg);
+  border: var(--fixed-row-border);
+}
+
+.row-task {
+  color: var(--task-row-color);
+  background: var(--task-row-bg);
+  border: var(--task-row-border);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.row-input {
+  min-width: 0;
+  height: 100%;
+  padding: 0 0.5rem;
+  font-weight: var(--card-font-weight, 400);
+  cursor: pointer;
+}
+
+.row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 0.45rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-task .row-label {
+  text-align: left;
+}
+
+.row-fixed .row-label {
+  text-align: center;
+}
+
+.row-label.is-empty {
+  color: var(--placeholder);
+}
+
+.row-time {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  padding: 0 0.55rem 0 0.35rem;
+  letter-spacing: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row-fixed .row-time {
+  color: var(--fixed-time-color);
+}
+
+.row-task .row-time {
+  color: var(--task-time-color);
+}
+
+.row-task-next {
+  border: 1.5px dashed var(--task-dash);
+}
+
+.is-struck {
+  position: relative;
+}
+
+.is-struck::after {
+  content: '';
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  top: 50%;
+  z-index: 2;
+  height: 1.5px;
+  background: currentColor;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.editor-box {
+  display: flex;
+  flex-direction: column;
+  color: var(--editor-color);
+  background: var(--editor-bg);
+  border: var(--editor-border);
+  border-radius: var(--editor-radius);
+  backdrop-filter: blur(3px);
+}
+
+.editor-box textarea,
+.editor-box input,
+.reminder-textarea,
+.note-input {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+}
+
+.editor-box textarea {
+  width: 100%;
+  max-height: 5rem;
+  padding: 0.5rem;
+}
+
+.editor-box .editor-time {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.35rem 0.5rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.editor-box .editor-time.is-invalid {
+  color: #b42318;
+}
+
+.editor-time-error {
+  padding: 0 0.5rem 0.4rem;
+  color: #b42318;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0.75rem 0 0.5rem 0.5rem;
+  color: var(--add-btn-color);
+  font-size: 1.1rem;
+  background: var(--add-btn-bg);
+  border: var(--add-btn-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background: var(--add-btn-hover, var(--add-btn-bg));
+  color: var(--add-btn-hover-color, var(--add-btn-color));
+  border-color: var(--add-btn-hover-border, var(--add-btn-color));
+}
+
+.reminder-textarea,
+.note-input {
+  width: 100%;
+}
+
+.reminder-textarea {
+  height: 100%;
+  min-height: 0;
+  padding: 0.5rem;
+}
+
+.reminder-textarea::placeholder,
+.note-input::placeholder,
+.editor-box textarea::placeholder,
+.editor-box input::placeholder {
+  color: var(--placeholder);
+}
+
+.note-input {
+  color: var(--note-color);
+  background: var(--note-bg);
+  border-radius: 0.5rem;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  outline: 1px solid var(--note-ring);
+  padding: 0.5rem 0.75rem;
+}
+
+.note-collapsed {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  max-height: 2.5rem;
+}
+
+.note-expanded {
+  height: 5.5rem;
+  min-height: 5.5rem;
+  max-height: 5.5rem;
+}
+
+.note-add,
+.delete-note {
+  cursor: pointer;
+}
+
+.note-add {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 2.5rem;
+  margin-top: 0.5rem;
+  color: var(--note-btn-color);
+  font-weight: var(--note-btn-weight, 400);
+  background: var(--note-btn-bg);
+  border: 0;
+  border-radius: 999px;
+}
+
+.note-add:hover {
+  background: var(--note-btn-hover, var(--note-btn-bg));
+}
+
+.delete-note {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #dc2626;
+  background: rgba(255, 255, 255, 0.9);
+  border: 0;
+  border-radius: 999px;
+}
+
+.tracker-bar {
+  width: 100%;
+  height: 3.5rem;
+  border-radius: 1rem;
+}
+
+.task-status-badge {
+  position: absolute;
+  top: -6px;
+  right: 14px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--badge-border);
+  border-radius: 9999px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.task-status-badge:hover {
+  transform: scale(1.15);
+}
+
+.task-status-done {
+  background-color: var(--status-done);
+}
+
+.task-status-pending {
+  background-color: var(--status-overdue);
+}
+
+.notes-scroll,
+.reminder-textarea,
+.prayer-card-content {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+.prayer-card-content {
+  scrollbar-color: var(--card-scrollbar) transparent;
+}
+
+.notes-scroll::-webkit-scrollbar,
+.reminder-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prayer-card-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notes-scroll::-webkit-scrollbar-thumb,
+.reminder-textarea::-webkit-scrollbar-thumb,
+.prayer-card-content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.prayer-card-content::-webkit-scrollbar-thumb {
+  background: var(--card-scrollbar);
+}
+
+.prayer-card-content::-webkit-scrollbar-button {
+  display: none;
+}
+
+.list-item-enter-active,
+.list-item-leave-active {
+  transition: all 0.5s ease;
+}
+
+.list-item-enter-from,
+.list-item-leave-to {
+  max-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.list-item-enter-to,
+.list-item-leave-from {
+  max-height: 150px;
+}
+
+.expandable-block,
+.collapsed-input-block {
+  transition:
+    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease-in-out,
+    margin 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.expandable-block-closed,
+.collapsed-hidden {
+  max-height: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.expandable-block-open {
+  max-height: 250px;
+  opacity: 1;
+}
+
+.collapsed-visible {
+  max-height: var(--row-height);
+  opacity: 1;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.task-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.task-menu {
+  position: fixed;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  min-width: 15.5rem;
+  padding: 0.35rem;
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  border-radius: 0.85rem;
+  box-shadow: var(--panel-shadow);
+  pointer-events: none;
+  animation: task-menu-arm 0s linear 0.35s forwards;
+}
+
+.task-menu-item {
+  padding: 0.7rem 0.85rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.task-menu-item:hover,
+.task-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+@keyframes task-menu-arm {
+  to {
+    pointer-events: auto;
+  }
+}
