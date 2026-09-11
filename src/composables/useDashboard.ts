@@ -685,7 +685,7 @@ function createDashboard() {
 
 export type DashboardContext = ReturnType<typeof createDashboard>
 
-const DashboardKey: InjectionKey<DashboardContext> = 'calmus-dashboard'
+const DashboardKey: InjectionKey<DashboardContext> = Symbol.for('calmus-dashboard')
 
 let sharedDashboard: DashboardContext | null = null
 

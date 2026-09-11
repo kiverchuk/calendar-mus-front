@@ -11,7 +11,7 @@ export interface ThemeContext {
   setTheme: (id: string) => void
 }
 
-const ThemeKey: InjectionKey<ThemeContext> = 'calmus-theme'
+const ThemeKey: InjectionKey<ThemeContext> = Symbol.for('calmus-theme')
 
 function readStoredTheme(): string {
   try {
