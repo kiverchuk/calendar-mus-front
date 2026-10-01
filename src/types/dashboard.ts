@@ -1,4 +1,5 @@
 export type TaskStatus = 'none' | 'pending' | 'done'
+export type TaskKind = 'task' | 'worship'
 
 export interface PrayerCard {
   title: string
@@ -22,6 +23,7 @@ export interface Task {
   start: number | null
   end: number | null
   status: TaskStatus
+  kind: TaskKind
   draftCard: number | null
 }
 
@@ -46,6 +48,7 @@ export interface CalendarDay {
 }
 
 export interface Note {
+  id: string
   focused: boolean
   text: string
 }

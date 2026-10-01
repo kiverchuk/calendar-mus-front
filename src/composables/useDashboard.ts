@@ -1,6 +1,6 @@
 import { computed, inject, nextTick, onMounted, onUnmounted, provide, ref, type InjectionKey } from 'vue'
 import { getInitialInputsForPrayer, prayers } from '@/data/prayers'
-import type { CalendarDay, CardRow, Note, Task, TaskStatus } from '@/types/dashboard'
+import type { CalendarDay, CardRow, Note, Task, TaskKind, TaskStatus } from '@/types/dashboard'
 
 const MINUTES_IN_DAY = 24 * 60
 const CLICK_DEBOUNCE_DELAY = 500
@@ -158,13 +158,14 @@ function createDashboard() {
   const fixedInputs = ref(prayers.map((prayer) => getInitialInputsForPrayer(prayer)))
   const tasks = ref<Task[]>([])
   const expandedKey = ref<string | null>(null)
-  const editDraft = ref<{ taskId: string; text: string; time: string; error: string } | null>(null)
-  const notes = ref<Note[]>([
-    { focused: false, text: '' },
-    { focused: false, text: '' },
-    { focused: false, text: '' },
-    { focused: false, text: '' },
-  ])
+  const editDraft = ref<{
+    taskId: string
+    text: string
+    time: string
+    kind: TaskKind
+    error: string
+  } | null>(null)
+  const notes = ref<Note[]>([])
 
   const currentMonth = computed(() => currentDate.value.getMonth())
   const currentYear = computed(() => currentDate.value.getFullYear())
@@ -273,14 +274,44 @@ function createDashboard() {
       return expandedKey.value === `${cardIndex}:${task.id}`
     })
 
+  const sortByStart = (a: Task, b: Task) => {
+    if (a.start === null && b.start === null) return 0
+    if (a.start === null) return 1
+    if (b.start === null) return -1
+    return a.start - b.start
+  }
+
   const cardRows = (cardIndex: number): CardRow[] => {
     const fixed = fixedInputs.value[cardIndex]
+    const unpinned = fixed.filter((item) => !item.isPinned)
+    const pinned = fixed.filter((item) => item.isPinned)
+    const cardTasks = tasksForCard(cardIndex)
+    /** Тип из черновика не двигает строку до сохранения — иначе редактор теряет фокус. */
+    const worshipTasks = cardTasks.filter((task) => task.kind === 'worship').sort(sortByStart)
+    const regularTasks = cardTasks.filter((task) => task.kind !== 'worship').sort(sortByStart)
+
+    /** Временное правило: поклонения сразу после НАМАЗ, внутри группы — по времени начала. */
+    const prayerBlock: CardRow[] = []
+    let worshipInserted = false
+    for (const input of unpinned) {
+      prayerBlock.push({ kind: 'fixed', input })
+      if (input.text.trim().toUpperCase() === 'НАМАЗ') {
+        prayerBlock.push(...worshipTasks.map((task) => ({ kind: 'task' as const, task })))
+        worshipInserted = true
+      }
+    }
+    if (!worshipInserted) {
+      prayerBlock.push(...worshipTasks.map((task) => ({ kind: 'task' as const, task })))
+    }
+
     return [
-      ...fixed.filter((item) => !item.isPinned).map((input) => ({ kind: 'fixed' as const, input })),
-      ...tasksForCard(cardIndex).map((task) => ({ kind: 'task' as const, task })),
-      ...fixed.filter((item) => item.isPinned).map((input) => ({ kind: 'fixed' as const, input })),
+      ...prayerBlock,
+      ...regularTasks.map((task) => ({ kind: 'task' as const, task })),
+      ...pinned.map((input) => ({ kind: 'fixed' as const, input })),
     ]
   }
+
+  const isWorshipRow = (row: CardRow) => row.kind === 'task' && row.task.kind === 'worship'
 
   const rowKey = (row: CardRow) => (row.kind === 'task' ? row.task.id : row.input.id)
   const rowText = (row: CardRow) => (row.kind === 'task' ? row.task.text : row.input.text)
@@ -361,6 +392,7 @@ function createDashboard() {
     if (error) return false
     task.text = draft.text
     task.time = time
+    task.kind = draft.kind
     const parsed = parseTimeRange(time)
     if (parsed) {
       task.start = parsed.start
@@ -380,9 +412,26 @@ function createDashboard() {
     return editDraft.value?.taskId === row.task.id ? editDraft.value.time : row.task.time
   }
 
+  const editorKind = (row: CardRow): TaskKind => {
+    if (row.kind !== 'task') return 'task'
+    return editDraft.value?.taskId === row.task.id ? editDraft.value.kind : row.task.kind
+  }
+
   const timeError = (row: CardRow) => {
     if (row.kind !== 'task') return ''
     return editDraft.value?.taskId === row.task.id ? editDraft.value.error : ''
+  }
+
+  const onTaskKindChange = (row: CardRow, kind: TaskKind) => {
+    if (row.kind !== 'task' || editDraft.value?.taskId !== row.task.id) return
+    editDraft.value.kind = kind
+    const key = expandedKey.value
+    nextTick(() => {
+      if (!key || expandedKey.value !== key) return
+      const container = document.querySelector(`[data-row-key="${CSS.escape(key)}"]`)
+      const target = container?.querySelector('textarea') as HTMLTextAreaElement | null
+      target?.focus({ preventScroll: true })
+    })
   }
 
   const placeTimeCaret = (row: CardRow, event: Event) => {
@@ -477,6 +526,7 @@ function createDashboard() {
       start: null,
       end: null,
       status: 'none',
+      kind: 'task',
       draftCard: cardIndex,
     })
     nextTick(() => beginTaskEdit(cardIndex, id))
@@ -493,7 +543,7 @@ function createDashboard() {
     const task = findTask(taskId)
     if (!task) return
     const key = `${cardIndex}:${taskId}`
-    editDraft.value = { taskId, text: task.text, time: task.time, error: '' }
+    editDraft.value = { taskId, text: task.text, time: task.time, kind: task.kind, error: '' }
     expandedKey.value = key
     nextTick(() => {
       const container = document.querySelector(`[data-row-key="${CSS.escape(key)}"]`)
@@ -588,21 +638,60 @@ function createDashboard() {
     }, 100)
   }
 
-  const focusNote = (noteIndex: number) => {
-    if (notes.value[noteIndex]) notes.value[noteIndex].focused = true
+  const findNoteIndex = (noteId: string) => notes.value.findIndex((note) => note.id === noteId)
+
+  const focusNote = (noteId: string) => {
+    const note = notes.value.find((item) => item.id === noteId)
+    if (note) note.focused = true
   }
 
-  const blurNote = (noteIndex: number) => {
-    if (notes.value[noteIndex]) notes.value[noteIndex].focused = false
+  const blurNote = (noteId: string) => {
+    const noteIndex = findNoteIndex(noteId)
+    if (noteIndex < 0) return
+    const note = notes.value[noteIndex]
+    if (!note.text.trim()) {
+      notes.value.splice(noteIndex, 1)
+      return
+    }
+    note.text = note.text.trim()
+    note.focused = false
   }
 
-  const deleteNote = (noteIndex: number) => {
-    if (notes.value.length > 1) notes.value.splice(noteIndex, 1)
+  const deleteNote = (noteId: string) => {
+    const noteIndex = findNoteIndex(noteId)
+    if (noteIndex >= 0) notes.value.splice(noteIndex, 1)
   }
 
   const addNewNote = () => {
-    notes.value.push({ focused: false, text: '' })
+    const id = `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    notes.value.push({ id, focused: true, text: '' })
+    nextTick(() => {
+      const target = document.querySelector(`[data-note-id="${CSS.escape(id)}"]`) as HTMLTextAreaElement | null
+      if (!target) return
+      target.focus()
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   }
+
+  const makeProgress = (statuses: TaskStatus[]) => {
+    const total = statuses.length
+    const done = statuses.filter((status) => status === 'done').length
+    const percent = total === 0 ? 0 : Math.round((done / total) * 100)
+    return { done, total, percent }
+  }
+
+  /** Пока задачи без даты — считаем текущий набор как день. Потом фильтр по selectedDate. */
+  const dayProgress = computed(() => {
+    const worshipStatuses = [
+      ...fixedInputs.value.flat().map((item) => item.status),
+      ...tasks.value.filter((task) => task.kind === 'worship').map((task) => task.status),
+    ]
+    const taskStatuses = tasks.value.filter((task) => task.kind === 'task').map((task) => task.status)
+    return {
+      worship: makeProgress(worshipStatuses),
+      tasks: makeProgress(taskStatuses),
+    }
+  })
 
   const clockTime = computed(() =>
     currentTime.value.toLocaleTimeString('ru-RU', {
@@ -643,6 +732,7 @@ function createDashboard() {
     currentMonthName,
     currentMonthNameWithYear,
     calendarDays,
+    dayProgress,
     notes,
     clockTime,
     clockTimeShort,
@@ -654,6 +744,7 @@ function createDashboard() {
     rowStatus,
     statusTitle,
     isTaskContinuation,
+    isWorshipRow,
     isRowExpanded,
     previousMonth,
     nextMonth,
@@ -669,8 +760,10 @@ function createDashboard() {
     taskMenu,
     editorText,
     editorTime,
+    editorKind,
     timeError,
     onTaskTextInput,
+    onTaskKindChange,
     handleTimeKeydown,
     handleTimeBeforeInput,
     handleTimeInput,

@@ -1,27 +1,55 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 
-const bars = [
-  { label: 'Поклонения', index: 0 },
-  { label: 'Дела', index: 1 },
-] as const
-
 const { theme } = useTheme()
+
+/** Временный визуальный пример: потом заменить на dayProgress из useDashboard. */
+const rows = computed(() => [
+  {
+    key: 'worship',
+    label: 'Поклонения',
+    done: 1,
+    total: 4,
+    percent: 25,
+    fillPercent: 25,
+    style: theme.value.trackerBars[0],
+  },
+  {
+    key: 'tasks',
+    label: 'Дела',
+    done: 0,
+    total: 0,
+    percent: 0,
+    fillPercent: 10,
+    style: theme.value.trackerBars[1],
+  },
+])
+
+const rowCaption = (row: (typeof rows.value)[number]) => {
+  if (row.total === 0) return 'Нет записей'
+  return `${row.done}/${row.total} ${row.percent}%`
+}
 </script>
 
 <template>
-  <section class="surface bottom-panel flex flex-col p-4">
+  <section class="surface bottom-panel tracker-panel flex flex-col p-4">
     <h3 class="panel-title">Трекер</h3>
-    <div class="flex flex-1 flex-col justify-center gap-4">
-      <div v-for="bar in bars" :key="bar.label">
-        <p class="mb-2 text-center text-sm" :style="{ color: 'var(--muted)' }">{{ bar.label }}</p>
-        <div
-          class="tracker-bar"
-          :style="{
-            background: theme.trackerBars[bar.index].background,
-            boxShadow: theme.trackerBars[bar.index].shadow,
-          }"
-        />
+
+    <div class="tracker-list">
+      <div v-for="row in rows" :key="row.key" class="tracker-row">
+        <p class="tracker-row-label">{{ row.label }}</p>
+        <div class="tracker-track" :aria-label="`${row.label}: ${rowCaption(row)}`">
+          <div
+            class="tracker-fill"
+            :style="{
+              width: `${row.fillPercent}%`,
+              background: row.style.background,
+              boxShadow: row.style.shadow,
+            }"
+          />
+          <span class="tracker-caption">{{ rowCaption(row) }}</span>
+        </div>
       </div>
     </div>
   </section>

@@ -9,23 +9,25 @@ const { notes, focusNote, blurNote, deleteNote, addNewNote } = useDashboard()
     <h3 class="panel-title">Заметки</h3>
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="notes-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        <div v-for="(note, noteIndex) in notes" :key="noteIndex" class="relative mb-2">
+        <p v-if="!notes.length" class="notes-empty">Пока нет заметок</p>
+        <div v-for="(note, noteIndex) in notes" :key="note.id" class="relative mb-2">
           <textarea
             v-model="note.text"
             class="note-input"
             :class="note.focused ? 'note-expanded' : 'note-collapsed'"
+            :data-note-id="note.id"
             placeholder="Введите текст"
             :aria-label="`Заметка ${noteIndex + 1}`"
-            @focus="focusNote(noteIndex)"
-            @blur="blurNote(noteIndex)"
+            @focus="focusNote(note.id)"
+            @blur="blurNote(note.id)"
           />
           <Transition name="fade">
             <button
-              v-if="note.focused && notes.length > 1"
+              v-if="note.focused"
               type="button"
               class="delete-note"
               :aria-label="`Удалить заметку ${noteIndex + 1}`"
-              @mousedown.prevent="deleteNote(noteIndex)"
+              @mousedown.prevent="deleteNote(note.id)"
             >
               ✕
             </button>

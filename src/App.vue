@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { provideAuth } from '@/composables/useAuth'
 import { provideTheme } from '@/composables/useTheme'
-import IslamicDashboard from '@/components/dashboard/IslamicDashboard.vue'
 
 provideTheme()
+provideAuth()
 </script>
 
 <template>
-  <IslamicDashboard />
+  <RouterView />
 </template>

@@ -18,13 +18,16 @@ const {
   statusTitle,
   isRowExpanded,
   isTaskContinuation,
+  isWorshipRow,
   onRowClick,
   onBadgeClick,
   openTaskMenu,
   editorText,
   editorTime,
+  editorKind,
   timeError,
   onTaskTextInput,
+  onTaskKindChange,
   handleTimeKeydown,
   handleTimeBeforeInput,
   handleTimeInput,
@@ -36,6 +39,7 @@ const { theme } = useTheme()
 const expanded = computed(() => isRowExpanded(props.cardIndex, props.row))
 const status = computed(() => rowStatus(props.row))
 const continued = computed(() => isTaskContinuation(props.cardIndex, props.row))
+const worship = computed(() => isWorshipRow(props.row))
 const struck = computed(() => status.value === 'done' || status.value === 'pending')
 const rowDomKey = computed(() => `${props.cardIndex}:${props.row.kind === 'task' ? props.row.task.id : props.row.input.id}`)
 
@@ -78,7 +82,7 @@ const onTouchMove = (event: TouchEvent) => {
   if (Math.hypot(touch.clientX - pressPoint.x, touch.clientY - pressPoint.y) > 12) cancelPress()
 }
 const rowStyle = computed(() => {
-  if (props.row.kind !== 'fixed') return undefined
+  if (props.row.kind !== 'fixed' && !worship.value) return undefined
   const background = fixedRowBackground(theme.value, props.cardIndex, props.rowIndex, rowText(props.row))
   return background ? { background } : undefined
 })
@@ -90,7 +94,7 @@ const rowStyle = computed(() => {
       class="collapsed-input-block"
       :class="[
         expanded ? 'collapsed-hidden' : 'collapsed-visible',
-        row.kind === 'fixed' ? 'row-fixed' : 'row-task',
+        row.kind === 'fixed' || worship ? 'row-fixed' : 'row-task',
         continued ? 'row-task-next' : '',
         struck ? 'is-struck' : '',
       ]"
@@ -132,6 +136,26 @@ const rowStyle = computed(() => {
           @input="onTaskTextInput(row, $event)"
           @blur="handleExpandedBlur(cardIndex, row, $event)"
         />
+        <div class="editor-kind" role="group" aria-label="Тип записи">
+          <button
+            type="button"
+            class="editor-kind-btn"
+            :class="{ 'is-active': editorKind(row) === 'task' }"
+            @mousedown.prevent
+            @click="onTaskKindChange(row, 'task')"
+          >
+            Задача
+          </button>
+          <button
+            type="button"
+            class="editor-kind-btn"
+            :class="{ 'is-active': editorKind(row) === 'worship' }"
+            @mousedown.prevent
+            @click="onTaskKindChange(row, 'worship')"
+          >
+            Поклонение
+          </button>
+        </div>
         <input
           class="editor-time"
           :class="{ 'is-invalid': timeError(row) }"

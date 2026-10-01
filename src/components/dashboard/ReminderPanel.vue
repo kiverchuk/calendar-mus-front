@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { defaultReminder } from '@/data/reminder'
 
-const text = ref('')
+const reminder = defaultReminder
 </script>
 
 <template>
-  <section class="surface bottom-panel flex flex-col px-4 py-4">
+  <section class="surface bottom-panel flex flex-col px-4 py-4" aria-label="Напоминание">
     <h3 class="panel-title">Напоминание</h3>
-    <textarea v-model="text" class="reminder-textarea flex-1" placeholder="Введите напоминание" aria-label="Напоминание" />
+    <div class="reminder-body">
+      <p class="reminder-text">{{ reminder.text }}</p>
+      <p v-if="reminder.signature" class="reminder-signature">{{ reminder.signature }}</p>
+    </div>
   </section>
 </template>
