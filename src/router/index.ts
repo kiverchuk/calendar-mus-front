@@ -5,15 +5,19 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/landing',
-      name: 'landing',
+      path: '/',
+      name: 'home',
       component: () => import('@/views/LandingView.vue'),
-      meta: { public: true },
     },
     {
-      path: '/',
-      name: 'app',
+      path: '/cm',
+      name: 'calendar',
       component: () => import('@/views/DashboardView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/landing',
+      redirect: '/',
     },
     {
       path: '/:pathMatch(.*)*',
@@ -22,9 +26,14 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async () => {
+router.beforeEach(async (to) => {
   const auth = useAuth()
   if (!auth.ready.value) await auth.bootstrap()
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated.value) {
+    return { path: '/', query: { redirect: to.fullPath } }
+  }
+
   return true
 })
 

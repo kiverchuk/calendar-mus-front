@@ -2,7 +2,8 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useDashboard } from '@/composables/useDashboard'
 
-const { taskMenu, menuTaskStatus, closeTaskMenu, setMenuTaskStatus, editTaskFromMenu } = useDashboard()
+const { taskMenu, menuTaskStatus, closeTaskMenu, setMenuTaskStatus, editTaskFromMenu, deleteTaskFromMenu } =
+  useDashboard()
 
 const statusActions = computed(() => {
   if (menuTaskStatus.value === 'done') {
@@ -44,6 +45,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         {{ action.label }}
       </button>
       <button type="button" class="task-menu-item" @click="editTaskFromMenu">Изменить</button>
+      <button type="button" class="task-menu-item task-menu-item-danger" @click="deleteTaskFromMenu">Удалить</button>
     </div>
   </div>
 </template>

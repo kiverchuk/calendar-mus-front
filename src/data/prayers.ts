@@ -23,21 +23,18 @@ const fixed = (
   ...(pinned ? { isPinned: true } : {}),
 })
 
-export const getInitialInputsForPrayer = (prayer: PrayerCard): PrayerInput[] => {
-  switch (prayer.title) {
-    case 'Фаджр':
-    case 'Зухр':
-      return [fixed(prayer, 'ratibat-1', 'Ратибат'), fixed(prayer, 'namaz-2', 'НАМАЗ'), fixed(prayer, 'azkary-3', 'Азкары')]
-    case 'Аср':
-    case 'Магриб':
-      return [fixed(prayer, 'namaz-1', 'НАМАЗ'), fixed(prayer, 'ratibat-2', 'Ратибат')]
-    case 'Иша':
-      return [
-        fixed(prayer, 'namaz-1', 'НАМАЗ'),
-        fixed(prayer, 'ratibat-2', 'Ратибат'),
-        fixed(prayer, 'tahajjud-3', 'Тахаджуд', true),
-      ]
-    default:
-      return [fixed(prayer, 'fixed', 'Намаз')]
-  }
+/** Порядок слотов поклонения внутри намаза. В списке остаётся только НАМАЗ. */
+export const worshipSlotOrder: Record<string, string[]> = {
+  Фаджр: ['Ратибат', 'НАМАЗ', 'Азкары'],
+  Зухр: ['Ратибат', 'НАМАЗ', 'Азкары'],
+  Аср: ['НАМАЗ', 'Ратибат'],
+  Магриб: ['НАМАЗ', 'Ратибат'],
+  Иша: ['НАМАЗ', 'Ратибат', 'Тахаджуд'],
 }
+
+export const getInitialInputsForPrayer = (prayer: PrayerCard): PrayerInput[] => [
+  fixed(prayer, 'namaz', 'НАМАЗ'),
+]
+
+/** Подсказки названия: уникальные поклонения со слотов, в порядке появления. */
+export const worshipNameSuggestions = [...new Set(Object.values(worshipSlotOrder).flat())]

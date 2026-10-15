@@ -5,7 +5,7 @@ const { notes, focusNote, blurNote, deleteNote, addNewNote } = useDashboard()
 </script>
 
 <template>
-  <section class="surface bottom-panel flex flex-col px-4 py-4">
+  <section class="surface bottom-panel notes-panel flex flex-col px-4 py-4">
     <h3 class="panel-title">Заметки</h3>
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="notes-scroll min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">

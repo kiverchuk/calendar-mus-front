@@ -83,7 +83,7 @@ const save = async () => {
 const onLogout = async () => {
   closeSettings()
   await logout()
-  await router.push('/landing')
+  await router.push('/')
 }
 </script>
 

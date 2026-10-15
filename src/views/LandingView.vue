@@ -15,8 +15,8 @@ const style = computed(() => themeStyle(theme.value))
     <div class="landing-shell">
       <TempNav />
       <div class="landing-hero">
-        <p class="landing-kicker">Временный лендинг</p>
-        <p class="landing-copy">Дизайн страницы ещё не согласован — пока вход и регистрация в модалке.</p>
+        <p class="landing-kicker">CalMus</p>
+        <p class="landing-copy">Войдите или зарегистрируйтесь, чтобы открыть календарь.</p>
       </div>
       <AuthModal />
     </div>

@@ -2,5 +2,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 *.tsbuildinfo
 .DS_Store

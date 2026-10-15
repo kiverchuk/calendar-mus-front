@@ -1,4 +1,15 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
+import { isServerId } from '@/api/date'
+import {
+  createGoal as createGoalRequest,
+  createSubtask,
+  deleteGoal as deleteGoalRequest,
+  deleteSubtask as deleteSubtaskRequest,
+  listGoals,
+  reorderSubtasks,
+  toggleGoal as toggleGoalRequest,
+  type ApiGoal,
+} from '@/api/goals'
 import type { GoalDeadlinePreset, GoalItem, GoalSubtask } from '@/types/goals'
 
 export interface GoalsContext {
@@ -57,70 +68,23 @@ function syncGoalDone(goal: GoalItem) {
   goal.done = goal.subtasks.every((item) => item.done)
 }
 
-function demoSub(text: string, done: boolean): GoalSubtask {
-  return { id: uid('sub'), text, done }
-}
-
-function createDemoGoals(): GoalItem[] {
-  const week = addPreset('week')
-  const month = addPreset('month')
-  const quarter = addPreset('quarter')
-  return [
-    {
-      id: 'demo-goal-1',
-      text: 'Выучить суру',
-      startDate: week.start,
-      endDate: week.end,
-      done: false,
-      subtasks: [],
-    },
-    {
-      id: 'demo-goal-2',
-      text: 'Помыть машину',
-      startDate: week.start,
-      endDate: week.end,
-      done: false,
-      subtasks: [
-        demoSub('Купить средства', true),
-        demoSub('Помыть кузов', false),
-        demoSub('Протереть салон', false),
-        demoSub('Просушить', false),
-      ],
-    },
-    {
-      id: 'demo-goal-3',
-      text: 'Утренняя рутина',
-      startDate: month.start,
-      endDate: month.end,
-      done: true,
-      subtasks: [
-        demoSub('Фаджр вовремя', true),
-        demoSub('Зикр', true),
-        demoSub('Зарядка', true),
-      ],
-    },
-    {
-      id: 'demo-goal-4',
-      text: 'Подготовка к Рамадану',
-      startDate: quarter.start,
-      endDate: quarter.end,
-      done: false,
-      subtasks: [
-        demoSub('Составить меню', false),
-        demoSub('Купить финики', false),
-        demoSub('План намазов', false),
-        demoSub('График сна', false),
-        demoSub('Семейный ифтар', false),
-        demoSub('Коран на каждый день', false),
-        demoSub('Список дуа', true),
-        demoSub('Пожертвования', true),
-      ],
-    },
-  ]
+function mapGoal(goal: ApiGoal): GoalItem {
+  return {
+    id: String(goal.id),
+    text: goal.text,
+    startDate: goal.start_date,
+    endDate: goal.end_date,
+    done: goal.is_completed,
+    subtasks: (goal.subtasks ?? []).map((subtask) => ({
+      id: String(subtask.id),
+      text: subtask.text,
+      done: subtask.is_completed,
+    })),
+  }
 }
 
 function createGoalsContext(): GoalsContext {
-  const goals = ref<GoalItem[]>(createDemoGoals())
+  const goals = ref<GoalItem[]>([])
   const creating = ref(false)
   const draftTitle = ref('')
   const draftStart = ref('')
@@ -147,18 +111,43 @@ function createGoalsContext(): GoalsContext {
     draftEnd.value = range.end
   }
 
+  const loadGoals = async () => {
+    try {
+      const response = await listGoals()
+      goals.value = response.data.goals.map(mapGoal)
+    } catch {
+      /* цели появятся после успешного ответа */
+    }
+  }
+
   const createGoal = () => {
     const text = draftTitle.value.trim()
     if (!text) return false
+    const tempId = uid('goal')
+    const startDate = draftStart.value || null
+    const endDate = draftEnd.value || null
     goals.value.push({
-      id: uid('goal'),
+      id: tempId,
       text,
-      startDate: draftStart.value || null,
-      endDate: draftEnd.value || null,
+      startDate,
+      endDate,
       done: false,
       subtasks: [],
     })
     cancelCreate()
+    void createGoalRequest({ text, start_date: startDate, end_date: endDate })
+      .then((response) => {
+        const saved = mapGoal(response.data.goal)
+        const current = goals.value.find((goal) => goal.id === tempId)
+        if (current) {
+          current.id = saved.id
+          current.startDate = saved.startDate
+          current.endDate = saved.endDate
+        }
+      })
+      .catch(() => {
+        goals.value = goals.value.filter((goal) => goal.id !== tempId)
+      })
     return true
   }
 
@@ -171,6 +160,7 @@ function createGoalsContext(): GoalsContext {
   }
 
   const deleteGoal = (goalId: string) => {
+    if (isServerId(goalId)) void deleteGoalRequest(goalId).catch(() => undefined)
     goals.value = goals.value.filter((goal) => goal.id !== goalId)
   }
 
@@ -184,6 +174,7 @@ function createGoalsContext(): GoalsContext {
       })
       packSubtasks(goal)
     }
+    if (isServerId(goalId)) void toggleGoalRequest(goalId).catch(() => undefined)
   }
 
   const addSubtask = (goalId: string, text: string) => {
@@ -195,12 +186,24 @@ function createGoalsContext(): GoalsContext {
     if (firstDone === -1) goal.subtasks.push(subtask)
     else goal.subtasks.splice(firstDone, 0, subtask)
     if (goal.done) goal.done = false
+    if (isServerId(goalId)) {
+      void createSubtask(goalId, value)
+        .then((response) => {
+          subtask.id = String(response.data.subtask.id)
+        })
+        .catch(() => {
+          goal.subtasks = goal.subtasks.filter((item) => item.id !== subtask.id)
+        })
+    }
     return true
   }
 
   const deleteSubtask = (goalId: string, subtaskId: string) => {
     const goal = findGoal(goalId)
     if (!goal) return
+    if (isServerId(goalId) && isServerId(subtaskId)) {
+      void deleteSubtaskRequest(goalId, subtaskId).catch(() => undefined)
+    }
     goal.subtasks = goal.subtasks.filter((item) => item.id !== subtaskId)
     syncGoalDone(goal)
   }
@@ -212,6 +215,7 @@ function createGoalsContext(): GoalsContext {
     subtask.done = !subtask.done
     syncGoalDone(goal)
     packSubtasks(goal)
+    if (isServerId(subtaskId)) void toggleGoalRequest(subtaskId).catch(() => undefined)
   }
 
   const reorderSubtask = (goalId: string, fromId: string, toId: string) => {
@@ -225,6 +229,9 @@ function createGoalsContext(): GoalsContext {
     const [item] = open.splice(fromIndex, 1)
     open.splice(toIndex, 0, item)
     goal.subtasks = [...open, ...done]
+    if (!isServerId(goalId)) return
+    const ids = goal.subtasks.map((subtask) => subtask.id).filter(isServerId).map(Number)
+    if (ids.length) void reorderSubtasks(goalId, ids).catch(() => undefined)
   }
 
   const goalProgress = (goal: GoalItem) => {
@@ -242,6 +249,8 @@ function createGoalsContext(): GoalsContext {
     if (start && end) return `${start} - ${end}`
     return start || end || ''
   }
+
+  void loadGoals()
 
   return {
     goals,

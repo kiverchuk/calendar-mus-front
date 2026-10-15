@@ -19,7 +19,7 @@ export function setToken(token: string | null) {
   }
 }
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') || '/api/v1'
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') || 'http://calendar-mus/api/v1'
 
 export class ApiError extends Error {
   code: number

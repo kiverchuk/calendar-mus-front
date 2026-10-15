@@ -45,6 +45,14 @@
   background: var(--bottom-panel-bg);
 }
 
+.reminder-panel {
+  background: var(--reminder-panel-bg, var(--bottom-panel-bg));
+}
+
+.notes-panel {
+  background: var(--notes-panel-bg, var(--bottom-panel-bg));
+}
+
 .panel-title,
 .prayer-title,
 .prayer-card-text {
@@ -625,7 +633,70 @@
 .editor-box textarea {
   width: 100%;
   max-height: 5rem;
-  padding: 0.5rem;
+  padding: 0.45rem;
+  font-size: inherit;
+  line-height: 1.35;
+}
+
+.editor-title,
+.editor-box,
+.expandable-block-open {
+  overflow: visible;
+}
+
+.editor-title {
+  position: relative;
+  font-size: var(--card-font-size);
+  line-height: 1.35;
+}
+
+.editor-suggest {
+  position: absolute;
+  top: calc(0.45rem + 1.35em + 0.55rem);
+  left: 0.45rem;
+  right: 0.45rem;
+  z-index: 8;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  color: #202124;
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 0.35rem;
+  box-shadow: 0 4px 14px rgba(32, 33, 36, 0.22);
+}
+
+.editor-suggest-caret {
+  position: absolute;
+  top: -0.42rem;
+  left: 0.85rem;
+  z-index: 1;
+  width: 0.72rem;
+  height: 0.72rem;
+  background: #ffffff;
+  border-top: 1px solid #dadce0;
+  border-left: 1px solid #dadce0;
+  transform: rotate(45deg);
+}
+
+.editor-suggest-item {
+  display: block;
+  width: 100%;
+  padding: 0.35rem;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.editor-suggest-item:hover,
+.editor-suggest-item:focus-visible {
+  background: #e8f0fe;
 }
 
 .editor-kind {
@@ -750,6 +821,30 @@
   color: var(--muted);
   font-size: 0.82rem;
   text-align: right;
+}
+
+.reminder-dots {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.reminder-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.35;
+  cursor: pointer;
+}
+
+.reminder-dot.is-active {
+  background: var(--text);
+  opacity: 1;
 }
 
 .reminder-textarea::placeholder,
@@ -1040,6 +1135,10 @@
   background: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
+.task-menu-item-danger {
+  color: #b42318;
+}
+
 @keyframes task-menu-arm {
   to {
     pointer-events: auto;
@@ -1202,8 +1301,8 @@
 }
 
 .goals-board {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
   gap: 0.85rem;
   align-items: stretch;
   padding: 0.15rem 0.1rem 0.35rem;
@@ -1211,9 +1310,9 @@
 
 .goal-card {
   display: flex;
-  flex: 0 0 18rem;
   flex-direction: column;
-  width: 18rem;
+  width: 100%;
+  min-width: 0;
   min-height: 14rem;
   padding: 0.85rem;
   background: var(--goals-card-bg);
@@ -1563,17 +1662,6 @@
   .goals-panel-head {
     flex-direction: column;
     gap: 0.65rem;
-  }
-
-  .goals-board {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-color: var(--goals-accent) transparent;
-  }
-
-  .goal-card {
-    flex: 0 0 min(16rem, 85vw);
-    width: min(16rem, 85vw);
   }
 }
 

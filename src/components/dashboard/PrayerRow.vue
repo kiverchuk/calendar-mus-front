@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { worshipNameSuggestions } from '@/data/prayers'
 import { useDashboard } from '@/composables/useDashboard'
 import { useTheme } from '@/composables/useTheme'
 import { fixedRowBackground } from '@/themes/style'
@@ -27,6 +28,7 @@ const {
   editorKind,
   timeError,
   onTaskTextInput,
+  applyWorshipSuggestion,
   onTaskKindChange,
   handleTimeKeydown,
   handleTimeBeforeInput,
@@ -81,6 +83,48 @@ const onTouchMove = (event: TouchEvent) => {
   if (!touch) return
   if (Math.hypot(touch.clientX - pressPoint.x, touch.clientY - pressPoint.y) > 12) cancelPress()
 }
+const titleEl = ref<HTMLTextAreaElement | null>(null)
+const titleWrapped = ref(false)
+
+const measureTitleWrap = (el: HTMLTextAreaElement) => {
+  const value = el.value
+  if (!value) return false
+  if (value.includes('\n')) return true
+  const style = getComputedStyle(el)
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return false
+  ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+  const letter = parseFloat(style.letterSpacing)
+  const extra = Number.isFinite(letter) ? letter * Math.max(0, value.length - 1) : 0
+  const pad = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+  return ctx.measureText(value).width + extra > el.clientWidth - pad - 1
+}
+
+const syncTitleWrap = () => {
+  titleWrapped.value = titleEl.value ? measureTitleWrap(titleEl.value) : false
+}
+
+const onTitleInput = (event: Event) => {
+  onTaskTextInput(props.row, event)
+  titleWrapped.value = measureTitleWrap(event.target as HTMLTextAreaElement)
+}
+
+watch(
+  () => [expanded.value, editorText(props.row)] as const,
+  () => nextTick(syncTitleWrap),
+)
+
+const worshipSuggestions = computed(() => {
+  if (!expanded.value || props.row.kind !== 'task' || titleWrapped.value) return []
+  const query = editorText(props.row).trim().toLocaleLowerCase('ru')
+  if (!query || query.includes('\n')) return []
+  return worshipNameSuggestions.filter((name) => {
+    const normalized = name.toLocaleLowerCase('ru')
+    return normalized.startsWith(query) && normalized !== query
+  })
+})
+
 const rowStyle = computed(() => {
   if (props.row.kind !== 'fixed' && !worship.value) return undefined
   const background = fixedRowBackground(theme.value, props.cardIndex, props.rowIndex, rowText(props.row))
@@ -129,13 +173,32 @@ const rowStyle = computed(() => {
       :class="expanded ? 'expandable-block-open' : 'expandable-block-closed'"
     >
       <div class="editor-box">
-        <textarea
-          :value="editorText(row)"
-          placeholder="Введите текст"
-          aria-label="Текст элемента расписания"
-          @input="onTaskTextInput(row, $event)"
-          @blur="handleExpandedBlur(cardIndex, row, $event)"
-        />
+        <div class="editor-title">
+          <textarea
+            ref="titleEl"
+            :value="editorText(row)"
+            placeholder="Введите текст"
+            aria-label="Текст элемента расписания"
+            :aria-expanded="worshipSuggestions.length > 0"
+            aria-autocomplete="list"
+            @input="onTitleInput"
+            @blur="handleExpandedBlur(cardIndex, row, $event)"
+          />
+          <ul v-if="worshipSuggestions.length" class="editor-suggest" role="listbox" aria-label="Подсказки поклонений">
+            <span class="editor-suggest-caret" aria-hidden="true"></span>
+            <li v-for="name in worshipSuggestions" :key="name">
+              <button
+                type="button"
+                class="editor-suggest-item"
+                role="option"
+                @mousedown.prevent
+                @click="applyWorshipSuggestion(row, name)"
+              >
+                {{ name }}
+              </button>
+            </li>
+          </ul>
+        </div>
         <div class="editor-kind" role="group" aria-label="Тип записи">
           <button
             type="button"

@@ -76,7 +76,7 @@ const submit = async () => {
   try {
     if (mode.value === 'login') {
       await auth.login(form.email, form.password)
-      const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+      const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/cm'
       await router.replace(redirect)
       return
     }
@@ -88,7 +88,7 @@ const submit = async () => {
         password: form.password,
         gender: form.gender,
       })
-      await router.replace('/')
+      await router.replace('/cm')
       return
     }
 

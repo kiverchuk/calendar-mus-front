@@ -1,27 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useDashboard } from '@/composables/useDashboard'
 import { useTheme } from '@/composables/useTheme'
 
 const { theme } = useTheme()
+const { dayProgress } = useDashboard()
 
-/** Временный визуальный пример: потом заменить на dayProgress из useDashboard. */
 const rows = computed(() => [
   {
     key: 'worship',
     label: 'Поклонения',
-    done: 1,
-    total: 4,
-    percent: 25,
-    fillPercent: 25,
+    ...dayProgress.value.worship,
+    fillPercent: dayProgress.value.worship.percent,
     style: theme.value.trackerBars[0],
   },
   {
     key: 'tasks',
     label: 'Дела',
-    done: 0,
-    total: 0,
-    percent: 0,
-    fillPercent: 10,
+    ...dayProgress.value.tasks,
+    fillPercent: dayProgress.value.tasks.percent,
     style: theme.value.trackerBars[1],
   },
 ])

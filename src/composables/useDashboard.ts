@@ -1,6 +1,11 @@
-import { computed, inject, nextTick, onMounted, onUnmounted, provide, ref, type InjectionKey } from 'vue'
-import { getInitialInputsForPrayer, prayers } from '@/data/prayers'
-import type { CalendarDay, CardRow, Note, Task, TaskKind, TaskStatus } from '@/types/dashboard'
+import { computed, inject, nextTick, onMounted, onUnmounted, provide, ref, watch, type InjectionKey } from 'vue'
+import { browserTimezone, isServerId, toDateKey } from '@/api/date'
+import { createNote, deleteNote as deleteNoteRequest, listNotes, updateNote } from '@/api/notes'
+import { listCompletions, prayerTimes, syncCompletion } from '@/api/prayers'
+import { createScheduleTask, deleteScheduleTask, listScheduleTasks, updateScheduleTask } from '@/api/schedule'
+import { useLocation } from '@/composables/useLocation'
+import { getInitialInputsForPrayer, prayers, worshipSlotOrder } from '@/data/prayers'
+import type { CalendarDay, CardRow, Note, PrayerCard, Task, TaskKind, TaskStatus } from '@/types/dashboard'
 
 const MINUTES_IN_DAY = 24 * 60
 const CLICK_DEBOUNCE_DELAY = 500
@@ -155,6 +160,8 @@ function createDashboard() {
   const currentDate = ref(new Date())
   const selectedDate = ref(new Date())
   const currentTime = ref(new Date())
+  const { location } = useLocation()
+  const boardPrayers = ref<PrayerCard[]>(prayers.map((item) => ({ ...item })))
   const fixedInputs = ref(prayers.map((prayer) => getInitialInputsForPrayer(prayer)))
   const tasks = ref<Task[]>([])
   const expandedKey = ref<string | null>(null)
@@ -213,7 +220,7 @@ function createDashboard() {
   })
 
   const prayerStartMinutes = computed(() =>
-    prayers.map((prayer) => {
+    boardPrayers.value.map((prayer) => {
       const [h, m] = prayer.time.split(':').map(Number)
       return h * 60 + (m || 0)
     }),
@@ -274,41 +281,48 @@ function createDashboard() {
       return expandedKey.value === `${cardIndex}:${task.id}`
     })
 
-  const sortByStart = (a: Task, b: Task) => {
-    if (a.start === null && b.start === null) return 0
-    if (a.start === null) return 1
-    if (b.start === null) return -1
-    return a.start - b.start
-  }
+  const normalizeTitle = (value: string) => value.trim().toLocaleLowerCase('ru')
 
   const cardRows = (cardIndex: number): CardRow[] => {
-    const fixed = fixedInputs.value[cardIndex]
-    const unpinned = fixed.filter((item) => !item.isPinned)
-    const pinned = fixed.filter((item) => item.isPinned)
+    const order = (worshipSlotOrder[boardPrayers.value[cardIndex]?.title] ?? ['НАМАЗ']).map(normalizeTitle)
+    const rank = new Map(order.map((name, index) => [name, index]))
     const cardTasks = tasksForCard(cardIndex)
-    /** Тип из черновика не двигает строку до сохранения — иначе редактор теряет фокус. */
-    const worshipTasks = cardTasks.filter((task) => task.kind === 'worship').sort(sortByStart)
-    const regularTasks = cardTasks.filter((task) => task.kind !== 'worship').sort(sortByStart)
 
-    /** Временное правило: поклонения сразу после НАМАЗ, внутри группы — по времени начала. */
-    const prayerBlock: CardRow[] = []
-    let worshipInserted = false
-    for (const input of unpinned) {
-      prayerBlock.push({ kind: 'fixed', input })
-      if (input.text.trim().toUpperCase() === 'НАМАЗ') {
-        prayerBlock.push(...worshipTasks.map((task) => ({ kind: 'task' as const, task })))
-        worshipInserted = true
-      }
-    }
-    if (!worshipInserted) {
-      prayerBlock.push(...worshipTasks.map((task) => ({ kind: 'task' as const, task })))
+    type Entry = { row: CardRow; priority: number | null; start: number | null; worship: boolean }
+
+    const entries: Entry[] = fixedInputs.value[cardIndex]
+      .filter((input) => normalizeTitle(input.text) === 'намаз')
+      .map((input) => ({
+        row: { kind: 'fixed' as const, input },
+        priority: rank.get('намаз') ?? 0,
+        start: null,
+        worship: true,
+      }))
+
+    for (const task of cardTasks) {
+      const name = normalizeTitle(task.text)
+      const worship = task.kind === 'worship'
+      entries.push({
+        row: { kind: 'task', task },
+        priority: worship ? (rank.get(name) ?? null) : null,
+        start: task.start,
+        worship,
+      })
     }
 
-    return [
-      ...prayerBlock,
-      ...regularTasks.map((task) => ({ kind: 'task' as const, task })),
-      ...pinned.map((input) => ({ kind: 'fixed' as const, input })),
-    ]
+    const byTime = (a: Entry, b: Entry) => {
+      if (a.start === null && b.start === null) return 0
+      if (a.start === null) return 1
+      if (b.start === null) return -1
+      return a.start - b.start
+    }
+
+    const worshipRows = entries
+      .filter((item) => item.worship)
+      .sort((a, b) => (a.priority ?? order.length) - (b.priority ?? order.length) || byTime(a, b))
+    const taskRows = entries.filter((item) => !item.worship).sort(byTime)
+
+    return [...worshipRows, ...taskRows].map((item) => item.row)
   }
 
   const isWorshipRow = (row: CardRow) => row.kind === 'task' && row.task.kind === 'worship'
@@ -324,9 +338,44 @@ function createDashboard() {
     return `${name} (нажмите, чтобы сменить статус)`
   }
 
+  const schedulePayload = (task: Task) => ({
+    date: toDateKey(selectedDate.value),
+    text: task.text,
+    time: task.time,
+    start: task.start,
+    end: task.end,
+    status: task.status,
+    kind: task.kind,
+  })
+
+  const persistTask = async (task: Task) => {
+    if (!task.text.trim()) return
+    try {
+      if (isServerId(task.id)) {
+        await updateScheduleTask(task.id, schedulePayload(task))
+        return
+      }
+      const response = await createScheduleTask(schedulePayload(task))
+      task.id = String(response.data.task.id)
+    } catch {
+      /* оставляем локальную правку, если сервер недоступен */
+    }
+  }
+
+  const persistNamaz = (inputId: string, status: TaskStatus) => {
+    const cardIndex = fixedInputs.value.findIndex((rows) => rows.some((row) => row.id === inputId))
+    if (cardIndex < 0) return
+    void syncCompletion(cardIndex + 1, toDateKey(selectedDate.value), status === 'done').catch(() => undefined)
+  }
+
   const setStatus = (row: CardRow, status: TaskStatus) => {
-    if (row.kind === 'task') row.task.status = status
-    else row.input.status = status
+    if (row.kind === 'task') {
+      row.task.status = status
+      void persistTask(row.task)
+      return
+    }
+    row.input.status = status
+    if (normalizeTitle(row.input.text) === 'намаз') persistNamaz(row.input.id, status)
   }
 
   const cycleStatus = (row: CardRow) => {
@@ -377,6 +426,7 @@ function createDashboard() {
   }
 
   const discardTask = (taskId: string) => {
+    if (isServerId(taskId)) void deleteScheduleTask(taskId).catch(() => undefined)
     tasks.value = tasks.value.filter((item) => item.id !== taskId)
     if (editDraft.value?.taskId === taskId) editDraft.value = null
     if (expandedKey.value?.endsWith(`:${taskId}`)) expandedKey.value = null
@@ -399,6 +449,7 @@ function createDashboard() {
       task.end = parsed.end
       task.draftCard = null
     }
+    void persistTask(task)
     return true
   }
 
@@ -505,6 +556,12 @@ function createDashboard() {
     editDraft.value.text = (event.target as HTMLTextAreaElement).value
   }
 
+  const applyWorshipSuggestion = (row: CardRow, title: string) => {
+    if (row.kind !== 'task' || editDraft.value?.taskId !== row.task.id) return
+    editDraft.value.text = title
+    editDraft.value.kind = 'worship'
+  }
+
   const previousMonth = () => {
     currentDate.value = new Date(currentYear.value, currentMonth.value - 1, 1)
   }
@@ -558,7 +615,7 @@ function createDashboard() {
 
   const openTaskMenu = (cardIndex: number, taskId: string, x: number, y: number) => {
     const width = 248
-    const height = 156
+    const height = 204
     taskMenu.value = {
       cardIndex,
       taskId,
@@ -578,7 +635,10 @@ function createDashboard() {
 
   const setMenuTaskStatus = (status: TaskStatus) => {
     const task = menuTask()
-    if (task) task.status = status
+    if (task) {
+      task.status = status
+      void persistTask(task)
+    }
     closeTaskMenu()
   }
 
@@ -588,6 +648,13 @@ function createDashboard() {
     const { cardIndex, taskId } = menu
     closeTaskMenu()
     beginTaskEdit(cardIndex, taskId)
+  }
+
+  const deleteTaskFromMenu = () => {
+    const menu = taskMenu.value
+    if (!menu) return
+    discardTask(menu.taskId)
+    closeTaskMenu()
   }
 
   const onBadgeClick = (row: CardRow) => {
@@ -650,14 +717,30 @@ function createDashboard() {
     if (noteIndex < 0) return
     const note = notes.value[noteIndex]
     if (!note.text.trim()) {
+      if (isServerId(note.id)) void deleteNoteRequest(note.id).catch(() => undefined)
       notes.value.splice(noteIndex, 1)
       return
     }
     note.text = note.text.trim()
     note.focused = false
+    void saveNote(note)
+  }
+
+  const saveNote = async (note: Note) => {
+    try {
+      if (isServerId(note.id)) {
+        await updateNote(note.id, note.text)
+        return
+      }
+      const response = await createNote(note.text)
+      note.id = String(response.data.note.id)
+    } catch {
+      /* заметка остаётся на экране */
+    }
   }
 
   const deleteNote = (noteId: string) => {
+    if (isServerId(noteId)) void deleteNoteRequest(noteId).catch(() => undefined)
     const noteIndex = findNoteIndex(noteId)
     if (noteIndex >= 0) notes.value.splice(noteIndex, 1)
   }
@@ -716,19 +799,97 @@ function createDashboard() {
     }),
   )
 
+  const loadNotes = async () => {
+    try {
+      const response = await listNotes()
+      notes.value = response.data.notes.map((note) => ({
+        id: String(note.id),
+        text: note.text,
+        focused: false,
+      }))
+    } catch {
+      /* пустой список, если заметок ещё нет */
+    }
+  }
+
+  const loadDay = async () => {
+    const date = toDateKey(selectedDate.value)
+    try {
+      const [taskResponse, completionResponse] = await Promise.all([
+        listScheduleTasks(date),
+        listCompletions(date),
+      ])
+      tasks.value = taskResponse.data.tasks.map((task) => ({
+        id: String(task.id),
+        text: task.text,
+        time: task.time,
+        start: task.start,
+        end: task.end,
+        status: task.status,
+        kind: task.kind,
+        draftCard: null,
+      }))
+      const doneIds = new Set(completionResponse.data.prayer_ids)
+      fixedInputs.value.forEach((rows, index) => {
+        rows.forEach((row) => {
+          if (normalizeTitle(row.text) === 'намаз') {
+            row.status = doneIds.has(index + 1) ? 'done' : 'none'
+          }
+        })
+      })
+    } catch {
+      /* оставляем текущий день */
+    }
+  }
+
+  const loadPrayerTimes = async () => {
+    const latitude = location.value.lat
+    const longitude = location.value.lng
+    if (latitude == null || longitude == null) return
+    try {
+      const response = await prayerTimes({
+        latitude,
+        longitude,
+        timezone: browserTimezone(),
+        date: toDateKey(selectedDate.value),
+      })
+      boardPrayers.value = boardPrayers.value.map((card, index) => {
+        const slot = response.data.prayer_times[String(index + 1)]
+        return slot?.start ? { ...card, time: slot.start } : card
+      })
+    } catch {
+      /* остаются времена по умолчанию */
+    }
+  }
+
   let clockTimer: ReturnType<typeof setInterval> | null = null
   onMounted(() => {
     clockTimer = setInterval(() => {
       currentTime.value = new Date()
     }, 1000)
+    void loadNotes()
+    void loadDay()
+    void loadPrayerTimes()
   })
+
+  watch(selectedDate, () => {
+    void loadDay()
+    void loadPrayerTimes()
+  })
+
+  watch(
+    () => [location.value.lat, location.value.lng] as const,
+    () => {
+      void loadPrayerTimes()
+    },
+  )
   onUnmounted(() => {
     if (clockTimer) clearInterval(clockTimer)
     if (statusClickTimer) clearTimeout(statusClickTimer)
   })
 
   return {
-    prayers,
+    prayers: boardPrayers,
     currentMonthName,
     currentMonthNameWithYear,
     calendarDays,
@@ -757,12 +918,14 @@ function createDashboard() {
     menuTaskStatus,
     setMenuTaskStatus,
     editTaskFromMenu,
+    deleteTaskFromMenu,
     taskMenu,
     editorText,
     editorTime,
     editorKind,
     timeError,
     onTaskTextInput,
+    applyWorshipSuggestion,
     onTaskKindChange,
     handleTimeKeydown,
     handleTimeBeforeInput,
