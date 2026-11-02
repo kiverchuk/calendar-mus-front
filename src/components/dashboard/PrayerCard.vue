@@ -24,7 +24,10 @@ const cardStyle = computed(() => ({
 <template>
   <section class="mx-auto mb-2 flex w-full max-w-[16rem] flex-col">
     <h3 class="prayer-title">{{ prayer.title }}</h3>
-    <p class="prayer-time">{{ prayer.time }}</p>
+    <p class="prayer-time">
+      <template v-if="prayer.endTime">{{ prayer.time }} – {{ prayer.endTime }}</template>
+      <template v-else>{{ prayer.time }}</template>
+    </p>
     <div class="prayer-card" :style="cardStyle">
       <div class="prayer-card-content">
         <TransitionGroup name="list-item" tag="div">

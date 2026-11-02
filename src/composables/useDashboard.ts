@@ -855,7 +855,13 @@ function createDashboard() {
       })
       boardPrayers.value = boardPrayers.value.map((card, index) => {
         const slot = response.data.prayer_times[String(index + 1)]
-        return slot?.start ? { ...card, time: slot.start } : card
+        if (!slot?.start) return card
+        return {
+          ...card,
+          time: slot.start,
+          // Фаджр: второе время — восход (конец окна утреннего намаза)
+          endTime: index === 0 && slot.end ? slot.end : undefined,
+        }
       })
     } catch {
       /* остаются времена по умолчанию */

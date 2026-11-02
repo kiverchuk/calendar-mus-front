@@ -4,6 +4,8 @@ export type TaskKind = 'task' | 'worship'
 export interface PrayerCard {
   title: string
   time: string
+  /** Второе время в шапке (для Фаджра — восход) */
+  endTime?: string
 }
 
 export interface PrayerInput {
